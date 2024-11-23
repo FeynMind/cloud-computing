@@ -83,6 +83,54 @@ class AuthController {
       });
     }
   }
+
+  async login(req, res) {
+    try {
+      const { email, password } = req.body;
+
+      // Validasi input
+      if (!email || !password) {
+        throw new ValidationError('Email and password are required.');
+      }
+
+      // Mencari user berdasarkan email
+      const user = await userRepository.findByEmail(email);
+      if (!user) {
+        return res.status(404).json({
+          status: 404,
+          message: 'User not found.',
+        });
+      }
+
+      // Memverifikasi password menggunakan bcrypt
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({
+          status: 401,
+          message: 'Invalid password.',
+        });
+      }
+
+      // Membuat token Firebase ID setelah login sukses
+      const firebaseToken = await admin.auth().createCustomToken(user.uid);
+
+      return res.status(200).json({
+        status: 200,
+        message: 'Login successful.',
+        token: firebaseToken,
+        user: {
+          email: user.email,
+          name: user.name,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        status: 500,
+        message: 'Login failed, please try again.',
+      });
+    }
+  }
 }
 
 export default new AuthController();

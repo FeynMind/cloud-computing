@@ -3,6 +3,7 @@ import express from 'express';
 import morgan from 'morgan';
 import cors from 'cors';
 import authRoutes from './src/routes/authRoutes.js';
+import protectedRoutes from './src/routes/protectedRoutes.js';
 
 const app = express();
 
@@ -20,7 +21,8 @@ app.get('/api/v1/', (req, res,) => {
 });
 
 
-app.use('/api/v1/auth ', authRoutes);
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1', protectedRoutes);
 
 const port = process.env.PORT || 9000;
 app.listen(port, () => {
