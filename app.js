@@ -1,11 +1,11 @@
-import app from './server.js';
+import app from "./server";
 
-const port = process.env.PORT || 8080;
+const port = process.env.PORT || 9000;
 
 const startServer = () => {
-  app.listen(port, () => {  // Ganti 'server' menjadi 'app'
-    // eslint-disable-next-line
-    console.log(`Whoooosshhh speed ${port} 🚀`);
+  app.listen(port, () => {
+   
+    console.log(` http://Localhost:${port} `);
   });
 };
 

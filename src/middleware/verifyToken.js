@@ -1,7 +1,7 @@
 
 import admin from '../config/firebase-config.js';
 
-const verifyFirebaseToken = async (req, res, next) => {
+const verifyToken = async (req, res, next) => {
   try {
     let token;
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
@@ -43,4 +43,4 @@ const verifyFirebaseToken = async (req, res, next) => {
   }
 };
 
-export default verifyFirebaseToken;
+export default verifyToken;
