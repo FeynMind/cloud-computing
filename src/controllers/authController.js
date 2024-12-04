@@ -5,6 +5,7 @@ import userRepository from '../Data/userRepository.js';
 import { ValidationError } from '../utils/appErrors.js';
 
 class AuthController {
+  // signup dengan email dan password
   async signup(req, res) {
     try {
       const {
@@ -26,6 +27,7 @@ class AuthController {
         throw new ValidationError('Name is required.');
       }
 
+      // Buat user di firebase Auhentication
       const createdAt = Timestamp.now();
       const updatedAt = createdAt;
 
@@ -80,6 +82,136 @@ class AuthController {
       return res.status(400).json({
         status: 400,
         message,
+      });
+    }
+  }
+
+  async login(req, res) {
+    try {
+      const { email, password } = req.body;
+
+      // Validasi input
+      if (!email || !password) {
+        throw new ValidationError('Email and password are required.');
+      }
+
+      // Mencari user berdasarkan email
+      const user = await userRepository.findByEmail(email);
+      if (!user) {
+        return res.status(404).json({
+          status: 404,
+          message: 'User not found.',
+        });
+      }
+
+      // Memverifikasi password menggunakan bcrypt
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({
+          status: 401,
+          message: 'Invalid password.',
+        });
+      }
+
+      // Membuat token Firebase ID setelah login sukses
+      const firebaseToken = await admin.auth().createCustomToken(user.uid);
+
+      return res.status(200).json({
+        status: 200,
+        message: 'Login successful.',
+        token: firebaseToken,
+        user: {
+          uid: user.uid,
+          email: user.email,
+          name: user.name,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        status: 500,
+        message: 'Login failed, please try again.',
+      });
+    }
+  }
+
+  // Login with Google Auth
+  async googleLogin(req, res) {
+    try {
+      const { idToken } = req.body;
+
+      // Verify Google ID token
+      if (!idToken) {
+        throw new ValidationError('Google ID Token is required.');
+      }
+
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+
+      const { email, name, uid } = decodedToken;
+
+      let user = await userRepository.findByEmail(email);
+      if (!user) {
+        // Create user if not exists
+        const createdAt = Timestamp.now();
+        const updatedAt = createdAt;
+
+        user = {
+          uid,
+          email,
+          name,
+          createdAt,
+          updatedAt,
+        };
+        
+        await userRepository.create(user, email);
+      }
+
+      // Create Firebase ID token
+      const firebaseToken = await admin.auth().createCustomToken(uid);
+
+      return res.status(200).json({
+        status: 200,
+        message: 'Login with Google successful.',
+        token: firebaseToken,
+        user: {
+          uid: user.uid,
+          email: user.email,
+          name: user.name,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        status: 500,
+        message: 'Login with Google failed, please try again.',
+      });
+    }
+  }
+
+  // Logout
+  async logout(req, res) {
+    try {
+      const { uid } = req.body;
+
+      if (!uid) {
+        return res.status(400).json({
+          status: 400,
+          message: 'User ID (uid) is required for logout.',
+        });
+      }
+
+      // Revoke refresh tokens for the user
+      await admin.auth().revokeRefreshTokens(uid);
+
+      return res.status(200).json({
+        status: 200,
+        message: 'Logout successful. Tokens revoked.',
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+      return res.status(500).json({
+        status: 500,
+        message: 'Failed to logout, please try again.',
       });
     }
   }
