@@ -9,9 +9,6 @@ class AuthController {
   // signup dengan email dan password
   async signup(req, res) {
     try {
-<<<<<<< HEAD
-      const { email, password, name } = req.body;
-=======
       const {
         email,
         password,
@@ -19,16 +16,13 @@ class AuthController {
         birthDate,
         class: userClass,
       } = req.body;
->>>>>>> 513434731d06da405e6080df9b85463578647bf6
+
 
       // Validasi input
       if (!email || !password || !name) {
         throw new ValidationError('Email, password, and name are required.');
       }
 
-<<<<<<< HEAD
-      // Buat user di Firebase Authentication
-=======
       if (!password) {
         throw new ValidationError('Password is required.');
       }
@@ -46,7 +40,6 @@ class AuthController {
       }
 
       // Buat user di firebase Authentication
->>>>>>> 513434731d06da405e6080df9b85463578647bf6
       const createdAt = Timestamp.now();
       const updatedAt = createdAt;
 
