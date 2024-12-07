@@ -9,14 +9,44 @@ class AuthController {
   // signup dengan email dan password
   async signup(req, res) {
     try {
+<<<<<<< HEAD
       const { email, password, name } = req.body;
+=======
+      const {
+        email,
+        password,
+        name,
+        birthDate,
+        class: userClass,
+      } = req.body;
+>>>>>>> 513434731d06da405e6080df9b85463578647bf6
 
       // Validasi input
       if (!email || !password || !name) {
         throw new ValidationError('Email, password, and name are required.');
       }
 
+<<<<<<< HEAD
       // Buat user di Firebase Authentication
+=======
+      if (!password) {
+        throw new ValidationError('Password is required.');
+      }
+
+      if (!name) {
+        throw new ValidationError('Name is required.');
+      }
+
+      if(!birthDate) {
+        throw new ValidationError('Birth Date is required.');
+      }
+
+      if(!userClass) {
+        throw new ValidationError('Class is required.');
+      }
+
+      // Buat user di firebase Authentication
+>>>>>>> 513434731d06da405e6080df9b85463578647bf6
       const createdAt = Timestamp.now();
       const updatedAt = createdAt;
 
@@ -34,6 +64,8 @@ class AuthController {
         email,
         password: await bcrypt.hash(password, 10),
         name,
+        birthDate,
+        class: userClass,
         createdAt,
         updatedAt,
       }, email);
@@ -44,6 +76,8 @@ class AuthController {
         user: {
           email: user.email,
           name: user.displayName,
+          birthDate,
+          class: userClass,
           createdAt,
         },
       });

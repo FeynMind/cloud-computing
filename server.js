@@ -3,8 +3,14 @@ import express from 'express';
 import morgan from 'morgan';
 import cors from 'cors';
 import authRoutes from './src/routes/authRoutes.js';
+<<<<<<< HEAD
 import fileRoutes from './src/routes/fileRoutes.js';
+=======
+import profileRoutes from './src/routes/profileRoutes.js';
+// import chatbotRoutes from './src/routes/chatbotRoutes.js';
+>>>>>>> 513434731d06da405e6080df9b85463578647bf6
 import protectedRoutes from './src/routes/protectedRoutes.js';
+import historyRoutes from './src/routes/historyRoutes.js';
 
 
 
@@ -35,12 +41,19 @@ app.get('/api/v1/', (req, res) => {
 
 // Public routes
 app.use('/api/v1/auth', authRoutes);
+<<<<<<< HEAD
 
 // Protected routes (with token verification)
 app.use('/api/v1/protected', protectedRoutes);
 
 // Route untuk upload PDF (memerlukan verifikasi token)
 app.use('/api/v1/pdf', fileRoutes);
+=======
+app.use('/api/v1/profile', profileRoutes);
+app.use('/api/v1/history', historyRoutes);
+// app.use('/api/v1/chatbot', chatbotRoutes);
+app.use('/api/v1', protectedRoutes);
+>>>>>>> 513434731d06da405e6080df9b85463578647bf6
 
 const port = process.env.PORT || 9000;
 app.listen(port, () => {
