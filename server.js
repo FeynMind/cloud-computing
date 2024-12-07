@@ -3,9 +3,22 @@ import express from 'express';
 import morgan from 'morgan';
 import cors from 'cors';
 import authRoutes from './src/routes/authRoutes.js';
+import fileRoutes from './src/routes/fileRoutes.js';
 import protectedRoutes from './src/routes/protectedRoutes.js';
 
+
+
 const app = express();
+const jwtSecret = process.env.JWT_SECRET;
+
+if (!jwtSecret) {
+  console.error('Error: JWT_SECRET is not defined in environment variables');
+  process.exit(1); // Menghentikan aplikasi jika JWT_SECRET tidak ada
+}
+
+console.log('JWT Secret:', jwtSecret);
+
+console.log('JWT Secret:', process.env.JWT_SECRET);
 
 app.use(cors());
 app.use(express.json());
@@ -13,16 +26,21 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
 // Routes
-app.get('/api/v1/', (req, res,) => {
+app.get('/api/v1/', (req, res) => {
   res.json({
     appName: 'FeynMind',
     apiVersion: 'v1',
   });
 });
 
-
+// Public routes
 app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1', protectedRoutes);
+
+// Protected routes (with token verification)
+app.use('/api/v1/protected', protectedRoutes);
+
+// Route untuk upload PDF (memerlukan verifikasi token)
+app.use('/api/v1/pdf', fileRoutes);
 
 const port = process.env.PORT || 9000;
 app.listen(port, () => {
@@ -30,5 +48,3 @@ app.listen(port, () => {
 });
 
 export default app;
-
-

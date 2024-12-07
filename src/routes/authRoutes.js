@@ -8,4 +8,5 @@ router.post('/login', AuthController.login);
 router.post('/google-login', AuthController.googleLogin);
 router.post('/logout', AuthController.logout);
 
+
 export default router;
