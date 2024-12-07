@@ -12,6 +12,8 @@ class AuthController {
         email,
         password,
         name,
+        birthDate,
+        class: userClass,
       } = req.body;
 
       // validation
@@ -27,7 +29,15 @@ class AuthController {
         throw new ValidationError('Name is required.');
       }
 
-      // Buat user di firebase Auhentication
+      if(!birthDate) {
+        throw new ValidationError('Birth Date is required.');
+      }
+
+      if(!userClass) {
+        throw new ValidationError('Class is required.');
+      }
+
+      // Buat user di firebase Authentication
       const createdAt = Timestamp.now();
       const updatedAt = createdAt;
 
@@ -45,6 +55,8 @@ class AuthController {
         email,
         password: await bcrypt.hash(password, 10),
         name,
+        birthDate,
+        class: userClass,
         createdAt,
         updatedAt,
       }, email);
@@ -55,6 +67,8 @@ class AuthController {
         user: {
           email: user.email,
           name: user.displayName,
+          birthDate,
+          class: userClass,
           createdAt,
         },
       });
@@ -70,7 +84,7 @@ class AuthController {
             message = 'The email address is already in use by another account.';
             break;
           case 'auth/invalid-phone-number':
-            message = 'The phone format muse be +62xxxxx.';
+            message = 'The phone format must be +62xxxxx.';
             break;
           default:
             message = 'Failed to signup, please try again.';
@@ -145,6 +159,7 @@ class AuthController {
         throw new ValidationError('Google ID Token is required.');
       }
 
+      // Verify ID Token using Firebase Admin SDK
       const decodedToken = await admin.auth().verifyIdToken(idToken);
 
       const { email, name, uid } = decodedToken;
@@ -163,6 +178,7 @@ class AuthController {
           updatedAt,
         };
         
+        // Store user data in Firestore
         await userRepository.create(user, email);
       }
 
