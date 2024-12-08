@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import { Timestamp } from 'firebase-admin/firestore';
 import admin from '../config/firebase-config.js';
 import userRepository from '../Data/userRepository.js';
@@ -16,9 +17,10 @@ class AuthController {
         class: userClass,
       } = req.body;
 
-      // validation
-      if (!email) {
-        throw new ValidationError('Email is required.');
+
+      // Validasi input
+      if (!email || !password || !name) {
+        throw new ValidationError('Email, password, and name are required.');
       }
 
       if (!password) {
@@ -49,7 +51,7 @@ class AuthController {
         disabled: false,
       });
 
-      // save to firestore
+      // Save user to Firestore
       await userRepository.create({
         uid: user.uid,
         email,
@@ -63,7 +65,7 @@ class AuthController {
 
       return res.status(201).json({
         status: 201,
-        message: 'Account created successfully, please log in',
+        message: 'Account created successfully, please log in.',
         user: {
           email: user.email,
           name: user.displayName,
@@ -73,25 +75,14 @@ class AuthController {
         },
       });
     } catch (error) {
+      console.log(error);
       let message = 'Failed to signup, please try again.';
-
+      
       if (error instanceof ValidationError) {
         message = error.message;
-      } else {
-        // Handle FirestoreError
-        switch (error.code) {
-          case 'auth/email-already-exists':
-            message = 'The email address is already in use by another account.';
-            break;
-          case 'auth/invalid-phone-number':
-            message = 'The phone format must be +62xxxxx.';
-            break;
-          default:
-            message = 'Failed to signup, please try again.';
-        }
+      } else if (error.code === 'auth/email-already-exists') {
+        message = 'The email address is already in use by another account.';
       }
-
-      console.log(error);
 
       return res.status(400).json({
         status: 400,
@@ -100,6 +91,7 @@ class AuthController {
     }
   }
 
+  // login dengan email dan password
   async login(req, res) {
     try {
       const { email, password } = req.body;
@@ -109,7 +101,6 @@ class AuthController {
         throw new ValidationError('Email and password are required.');
       }
 
-      // Mencari user berdasarkan email
       const user = await userRepository.findByEmail(email);
       if (!user) {
         return res.status(404).json({
@@ -118,7 +109,6 @@ class AuthController {
         });
       }
 
-      // Memverifikasi password menggunakan bcrypt
       const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
         return res.status(401).json({
@@ -127,13 +117,17 @@ class AuthController {
         });
       }
 
-      // Membuat token Firebase ID setelah login sukses
-      const firebaseToken = await admin.auth().createCustomToken(user.uid);
+      // Create Bearer token using JWT
+      const bearerToken = jwt.sign(
+        { uid: user.uid, email: user.email, name: user.name },
+        process.env.JWT_SECRET, // Secret key used to sign the token
+        { expiresIn: '1h' } // Token expiration time
+      );
 
       return res.status(200).json({
         status: 200,
         message: 'Login successful.',
-        token: firebaseToken,
+        token: bearerToken, // JWT Bearer token
         user: {
           uid: user.uid,
           email: user.email,
@@ -149,24 +143,23 @@ class AuthController {
     }
   }
 
-  // Login with Google Auth
+  // Login dengan Google Auth
   async googleLogin(req, res) {
     try {
       const { idToken } = req.body;
 
-      // Verify Google ID token
+      // Verifikasi Google ID token
       if (!idToken) {
         throw new ValidationError('Google ID Token is required.');
       }
 
-      // Verify ID Token using Firebase Admin SDK
+      // Verifikasi ID Token menggunakan Firebase Admin SDK
       const decodedToken = await admin.auth().verifyIdToken(idToken);
-
       const { email, name, uid } = decodedToken;
 
       let user = await userRepository.findByEmail(email);
       if (!user) {
-        // Create user if not exists
+        // Buat user jika belum ada
         const createdAt = Timestamp.now();
         const updatedAt = createdAt;
 
@@ -177,18 +170,22 @@ class AuthController {
           createdAt,
           updatedAt,
         };
-        
-        // Store user data in Firestore
+
+        // Simpan data user di Firestore
         await userRepository.create(user, email);
       }
 
-      // Create Firebase ID token
-      const firebaseToken = await admin.auth().createCustomToken(uid);
+      // Create Bearer token using JWT
+      const bearerToken = jwt.sign(
+        { uid: user.uid, email: user.email, name: user.name },
+        process.env.JWT_SECRET, // Secret key used to sign the token
+        { expiresIn: '1h' } // Token expiration time
+      );
 
       return res.status(200).json({
         status: 200,
         message: 'Login with Google successful.',
-        token: firebaseToken,
+        token: bearerToken, // JWT Bearer token
         user: {
           uid: user.uid,
           email: user.email,
@@ -207,16 +204,20 @@ class AuthController {
   // Logout
   async logout(req, res) {
     try {
-      const { uid } = req.body;
+      const { token } = req.body;
 
-      if (!uid) {
+      if (!token) {
         return res.status(400).json({
           status: 400,
-          message: 'User ID (uid) is required for logout.',
+          message: 'Firebase ID token is required for logout.',
         });
       }
 
-      // Revoke refresh tokens for the user
+      // Verifikasi ID token untuk memastikan validitas
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      const { uid } = decodedToken;
+
+      // Revoke refresh tokens untuk user
       await admin.auth().revokeRefreshTokens(uid);
 
       return res.status(200).json({
