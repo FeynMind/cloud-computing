@@ -204,25 +204,30 @@ class AuthController {
   // Logout
   async logout(req, res) {
     try {
-      const { token } = req.body;
+      // Ambil token dari request header
+      const token = req.headers['authorization']?.split(' ')[1]; // Mengambil token JWT dari header Authorization
 
       if (!token) {
         return res.status(400).json({
           status: 400,
-          message: 'Firebase ID token is required for logout.',
+          message: 'JWT token is required for logout.',
         });
       }
 
-      // Verifikasi ID token untuk memastikan validitas
-      const decodedToken = await admin.auth().verifyIdToken(token);
-      const { uid } = decodedToken;
+      // Verifikasi token JWT untuk memastikan validitas
+      jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+        if (err) {
+          return res.status(403).json({
+            status: 403,
+            message: 'Invalid or expired JWT token.',
+          });
+        }
 
-      // Revoke refresh tokens untuk user
-      await admin.auth().revokeRefreshTokens(uid);
-
-      return res.status(200).json({
-        status: 200,
-        message: 'Logout successful. Tokens revoked.',
+        // Token valid, logout berhasil
+        return res.status(200).json({
+          status: 200,
+          message: 'Logout successful.',
+        });
       });
     } catch (error) {
       console.error('Logout error:', error);

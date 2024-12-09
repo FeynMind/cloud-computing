@@ -1,5 +1,4 @@
 import db from '../config/db.js';
-import { QueryNotFound } from '../utils/appErrors.js';
 
 export default class BaseRepository {
   constructor(collection) {
@@ -25,11 +24,7 @@ export default class BaseRepository {
   async findById(id) {
     const ref = this.collection.doc(id);
     const doc = await ref.get();
-    if (!doc.exists) {
-      throw new QueryNotFound('Data not found!');
-    }
-
-    return doc.data();
+    return doc.exists ? { id: doc.id, ...doc.data() } : null;
   }
 
   async delete(id) {

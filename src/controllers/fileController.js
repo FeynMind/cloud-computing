@@ -48,7 +48,7 @@ const authenticate = (req, res, next) => {
     return res.status(401).json({ message: 'Token is required' });
   }
 
-  jwt.verify(token, 'your_secret_key', (err, user) => {
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
       return res.status(403).json({ message: 'Invalid token' });
     }
