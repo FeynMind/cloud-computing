@@ -6,9 +6,7 @@ import authRoutes from './src/routes/authRoutes.js';
 import fileRoutes from './src/routes/fileRoutes.js';
 import profileRoutes from './src/routes/profileRoutes.js';
 import protectedRoutes from './src/routes/protectedRoutes.js';
-import historyRoutes from './src/routes/historyRoutes.js';
-
-
+import chatRoutes from './src/routes/chatRoutes.js';
 
 const app = express();
 const jwtSecret = process.env.JWT_SECRET;
@@ -39,7 +37,7 @@ app.use('/api/v1/protected', protectedRoutes);
 // Route untuk upload PDF (memerlukan verifikasi token)
 app.use('/api/v1/pdf', fileRoutes);
 app.use('/api/v1/profile', profileRoutes);
-app.use('/api/v1/history', historyRoutes);
+app.use('/api/v1/chat', chatRoutes);
 app.use('/api/v1', protectedRoutes);
 
 
