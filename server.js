@@ -3,7 +3,6 @@ import express from 'express';
 import morgan from 'morgan';
 import cors from 'cors';
 import authRoutes from './src/routes/authRoutes.js';
-import fileRoutes from './src/routes/fileRoutes.js';
 import profileRoutes from './src/routes/profileRoutes.js';
 import protectedRoutes from './src/routes/protectedRoutes.js';
 import chatRoutes from './src/routes/chatRoutes.js';
@@ -35,7 +34,6 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/protected', protectedRoutes);
 
 // Route untuk upload PDF (memerlukan verifikasi token)
-app.use('/api/v1/pdf', fileRoutes);
 app.use('/api/v1/profile', profileRoutes);
 app.use('/api/v1/chat', chatRoutes);
 app.use('/api/v1', protectedRoutes);

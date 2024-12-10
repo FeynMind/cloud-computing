@@ -1,36 +1,24 @@
 import admin from '../config/firebase-config.js';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 import { Storage } from '@google-cloud/storage';
 
-const storage = new Storage();
-const bucketName = process.env.GCS_BUCKET_NAME; // Sesuaikan nama bucket GCS Anda
+// Inisialisasi Google Cloud Storage
+const storage = new Storage({
+  keyFilename: './src/config/serviceAccountKey.json',
+});
+const bucketName = process.env.GCS_BUCKET_NAME;
 
-// Konfigurasi multer untuk unggah file PDF
+// Konfigurasi Multer untuk memory storage
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      const uploadDir = path.join(__dirname, '../uploads');
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-      cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-      cb(null, `${Date.now()}-${file.originalname}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
-    const fileTypes = /pdf/;
-    const mimeType = fileTypes.test(file.mimetype);
-    if (mimeType) {
+    if (file.mimetype === 'application/pdf') {
       cb(null, true);
     } else {
       cb(new Error('Only PDF files are allowed.'));
     }
   },
-  limits: { fileSize: 10 * 1024 * 1024 }, // Maksimal 10 MB
+  limits: { fileSize: 50 * 1024 * 1024 }, // Maksimal 50 MB
 });
 
 class chatController {
@@ -136,75 +124,122 @@ class chatController {
         message: "Failed to retrieve topics."
       });
     }
-  }  
+  }
 
-    // Fungsi untuk menyimpan pilihan kelas dan topik
-    async setTopicPreference(req, res) {
-        try {
-            const { className, topic } = req.body;
-            const user = req.user; // Ambil user dari token JWT (gunakan UID atau email)
-            
-            console.log('Received data:', { className, topic, user });
+  async setTopicPreference(req, res) {
+    try {
+        const { sessionId, className, topic } = req.body;
+        const user = req.user; // Ambil user dari token JWT (gunakan UID atau email)
 
-            // Validasi input kelas dan topik
-            // Ambil daftar topik yang sesuai dengan kelas yang dipilih
-            const topicsResponse = await this.getTopics(req, res); // Panggil getTopics
-            const topics = topicsResponse.data; // Ambil data topik dari response
-
-            // Pastikan kelas yang dimasukkan valid
-            if (!topics) {
-                return res.status(400).json({
-                    status: 400,
-                    message: `Invalid class name: ${className}. Please provide a valid class name.`,
-                });
-            }
-
-            // Validasi topik
-            if (!topic || !topics.includes(topic)) {
-                return res.status(400).json({
-                    status: 400,
-                    message: `Invalid topic for ${className}. Please provide a valid topic.`,
-                });
-            }
-
-            // Simpan preferensi kelas dan topik ke Firestore
-            const userPreference = {
-                className,
-                topic,
-                updatedAt: admin.firestore.Timestamp.now(), // Gunakan timestamp Firestore
-            };
-
-            console.log('Saving user preference:', userPreference);
-
-            // Pastikan menggunakan user.uid atau user.email sesuai dengan apa yang ada di req.user
-            const userId = user.email || user.uid; // Gunakan email atau UID, tergantung yang Anda simpan dalam token JWT
-            if (!userId) {
-                return res.status(400).json({
-                    status: 400,
-                    message: 'User ID is missing in token.',
-                });
-            }
-
-            // Menyimpan data preferensi ke Firestore
-            await admin.firestore()
-                .collection('users')
-                .doc(userId) // Gunakan userId untuk ID dokumen
-                .set({ topicPreference: userPreference }, { merge: true }); // Gunakan merge untuk update sebagian data
-
-            return res.status(200).json({
-                status: 200,
-                message: 'Topic preference saved successfully.',
-                data: userPreference,
-            });
-        } catch (error) {
-            console.error('Error in setTopicPreference:', error); // Tampilkan error lengkap untuk debugging
-            return res.status(500).json({
-                status: 500,
-                message: 'Failed to save topic preference.',
-                error: error.message, // Kirimkan pesan error untuk debugging
+        if (!sessionId || !className || !topic) {
+            return res.status(400).json({
+                status: 400,
+                message: "sessionId, className, and topic are required.",
             });
         }
+
+        console.log("Received data:", { sessionId, className, topic, user });
+
+        // Validasi kelas dan topik
+        const topics = {
+            "Kelas 10": [
+                "Ruang Lingkup Biologi",
+                "Sel",
+                "Sel 2",
+                "Keanekaragaman Hayati",
+                "Sistem Klasifikasi",
+                "Bakteri",
+                "Protista",
+                "Jamur",
+                "Plantae",
+                "Animalia"
+            ],
+            "Kelas 11": [
+                "Jaringan Hewan",
+                "Jaringan Tumbuhan",
+                "Sistem Gerak pada Manusia",
+                "Sistem Koordinasi",
+                "Sistem Pencernaan pada Manusia",
+                "Sistem Pernafasan",
+                "Sistem Sirkulasi Manusia",
+                "Sistem Ekskresi",
+                "Sistem Pertahanan Tubuh",
+                "Materi Genetik",
+                "Metabolisme",
+                "Pertumbuhan dan Perkembangan"
+            ],
+            "Kelas 12": [
+                "Hereditas 2",
+                "Pewarisan Sifat",
+                "Mutasi",
+                "Evolusi",
+                "Bioteknologi",
+                "Bioproses",
+                "Psikotropika",
+                "Penerapan Prinsip Reproduksi Manusia",
+                "Ekosistem",
+                "Perubahan Lingkungan",
+                "Virus"
+            ]
+        };
+
+        const selectedTopics = topics[className];
+
+        if (!selectedTopics || !selectedTopics.includes(topic)) {
+            return res.status(400).json({
+                status: 400,
+                message: `Invalid topic for class ${className}. Please provide a valid topic.`,
+            });
+        }
+
+        // Data preferensi yang akan disimpan
+        const preferenceData = {
+            className,
+            topic,
+            createdAt: new Date().toISOString(),
+        };
+
+        console.log("Preference data to save:", preferenceData);
+
+        // Referensi ke dokumen sesi berdasarkan sessionId
+        const sessionRef = admin.firestore().collection("chatSessions").doc(sessionId);
+
+        // Periksa apakah sessionId sudah ada
+        const sessionDoc = await sessionRef.get();
+        if (!sessionDoc.exists) {
+            // Jika sesi belum ada, buat sesi baru
+            const newSession = {
+                sessionId,
+                userId: user.uid,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                preferences: preferenceData, // Simpan preferensi di field preferences
+                chats: [], // Inisialisasi array chats kosong
+            };
+
+            await sessionRef.set(newSession);
+        } else {
+            // Jika sesi sudah ada, update data preferensi
+            await sessionRef.update({
+                preferences: preferenceData,
+                updatedAt: new Date().toISOString(),
+            });
+        }
+
+        return res.status(200).json({
+            status: 200,
+            message: "Topic preference saved successfully.",
+            data: preferenceData,
+        });
+    } catch (error) {
+        console.error("Error in setTopicPreference:", error.message);
+        return res.status(500).json({
+            status: 500,
+            message: "Failed to save topic preference.",
+            error: error.message,
+        });
     }
+  }
 
     async createNewSession(req, res) {
         try {
@@ -338,59 +373,100 @@ class chatController {
         }
       }            
 
-  // Fungsi untuk menerima input PDF
-  async inputPDF(req, res) {
-    upload.single('pdf')(req, res, async (err) => {
-      try {
+    async inputPDF(req, res) { 
+      upload.single('pdf')(req, res, async (err) => {
         if (err) {
           return res.status(400).json({
             status: 400,
             message: err.message || 'Failed to upload PDF.',
           });
         }
-
-        const filePath = req.file.path;
-        const originalFileName = req.file.originalname;
-
-        // Unggah file PDF ke Google Cloud Storage
-        const gcsFileName = `pdf/${Date.now()}-${originalFileName}`;
-        await storage.bucket(bucketName).upload(filePath, {
-          destination: gcsFileName,
-          metadata: {
-            contentType: 'application/pdf',
-          },
-        });
-
-        // Simpan metadata file di database (Firestore)
-        const user = req.user; // Dapatkan user dari token JWT
-        const chatId = `${user.uid}-${Date.now()}`;
-        const chatData = {
-          chatId,
-          type: 'pdf',
-          content: gcsFileName,
-          userId: user.uid,
-          createdAt: new Date().toISOString(),
-        };
-
-        await admin.firestore().collection('chats').doc(chatId).set(chatData);
-
-        // Hapus file lokal setelah diunggah
-        fs.unlinkSync(filePath);
-
-        return res.status(200).json({
-          status: 200,
-          message: 'PDF uploaded and metadata saved successfully.',
-          data: chatData,
-        });
-      } catch (error) {
-        console.error('Error in inputPDF:', error.message);
-        return res.status(500).json({
-          status: 500,
-          message: 'Failed to process PDF input.',
-        });
-      }
-    });
-  }
+    
+        try {
+          const { file } = req;
+          const { sessionId } = req.body; // Ambil sessionId dari body request
+    
+          if (!file) {
+            return res.status(400).json({
+              status: 400,
+              message: 'No file uploaded. Please provide a valid PDF file.',
+            });
+          }
+    
+          if (!sessionId) {
+            return res.status(400).json({
+              status: 400,
+              message: 'Session ID is required.',
+            });
+          }
+    
+          const originalFileName = file.originalname;
+          const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+          const gcsFileName = `input-pdf/${uniqueId}-${originalFileName}`;
+          const user = req.user;
+    
+          // Unggah file PDF ke GCS
+          const bucket = storage.bucket(bucketName);
+          const blob = bucket.file(gcsFileName);
+          const blobStream = blob.createWriteStream({
+            metadata: {
+              contentType: 'application/pdf',
+            },
+          });
+    
+          blobStream.on('error', (error) => {
+            console.error('Blob stream error:', error);
+            throw error;
+          });
+    
+          blobStream.on('finish', async () => {
+            console.log('File uploaded successfully to GCS:', gcsFileName);
+    
+            const publicUrl = `https://storage.googleapis.com/${bucketName}/${gcsFileName}`;
+    
+            // Simpan metadata file di collection chatSessions terkait dengan sessionId
+            const sessionRef = admin.firestore().collection('chatSessions').doc(sessionId);
+            const sessionDoc = await sessionRef.get();
+    
+            if (!sessionDoc.exists) {
+              return res.status(404).json({
+                status: 404,
+                message: 'Session not found.',
+              });
+            }
+    
+            // Data metadata PDF yang akan disimpan ke sesi
+            const sessionData = {
+              type: 'pdf',
+              content: gcsFileName,
+              fileUrl: publicUrl,
+              userId: user.uid,
+              createdAt: new Date().toISOString(),
+            };
+    
+            // Update sesi dengan metadata file
+            await sessionRef.update({
+              chats: admin.firestore.FieldValue.arrayUnion(sessionData),
+              updatedAt: new Date().toISOString(),
+            });
+    
+            return res.status(200).json({
+              status: 200,
+              message: 'PDF uploaded and metadata saved to session successfully.',
+              data: sessionData,
+            });
+          });
+    
+          blobStream.end(file.buffer);
+        } catch (error) {
+          console.error('Error in inputPDF:', error.message);
+          return res.status(500).json({
+            status: 500,
+            message: error.message || 'Failed to process PDF input.',
+          });
+        }
+      });
+    }      
 }
 
 export default new chatController();
