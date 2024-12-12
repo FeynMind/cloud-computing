@@ -8,25 +8,32 @@ const editProfileSchema = Joi.object({
   email: Joi.string().email().optional(),
   name: Joi.string().min(3).max(50).optional(),
   newPassword: Joi.string().min(6).optional(),
+  userClass: Joi.string().regex(/^[0-9]+$/).optional().messages({
+    "string.pattern.base": "Kelas hanya boleh berupa angka.",
+  }),
+  birthDate: Joi.date().max('now').optional().messages({
+    "date.max": "Tanggal lahir tidak boleh di masa depan.",
+  }),
+  school: Joi.string().min(3).optional(),
 });
 
 class ProfileController {
   // Edit Profile
   async editProfile(req, res) {
     try {
-      const { email, name, newPassword } = req.body;
+      const { email, name, newPassword, userClass, birthDate, school } = req.body;
       const uid = req.user.uid;
       const emailVerified = req.user.email;
-
+  
       // Validasi input
-      const { error } = editProfileSchema.validate(req.body);
+      const { error } = editProfileSchema.validate(req.body); // Perbarui schema untuk atribut baru
       if (error) {
         return res.status(400).json({
           status: 400,
           message: `Validation Error: ${error.details[0].message}`,
         });
       }
-
+  
       // Cari user di Firestore
       const users = await userRepository.findByEmail(emailVerified);
       if (!users) {
@@ -35,8 +42,10 @@ class ProfileController {
           message: 'User not found.',
         });
       }
-
-      // Validasi email unik
+  
+      const updatePayload = {}; // Untuk menyimpan atribut yang akan diubah
+  
+      // Validasi email unik jika diubah
       if (email && email !== users.email) {
         const existingUser = await userRepository.findByEmail(email);
         if (existingUser) {
@@ -45,10 +54,10 @@ class ProfileController {
             message: 'Email is already in use by another account.',
           });
         }
+        updatePayload.email = email;
       }
-
+  
       // Hash password baru (jika ada)
-      let hashedPassword;
       if (newPassword) {
         const isSamePassword = await bcrypt.compare(newPassword, users.password);
         if (isSamePassword) {
@@ -57,44 +66,58 @@ class ProfileController {
             message: 'New password cannot be the same as the old password.',
           });
         }
-        hashedPassword = await bcrypt.hash(newPassword, 10);
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        updatePayload.password = hashedPassword;
       }
-
-      // Sanitasi nama
-      const sanitizedName = sanitizeHtml(name || users.name, { allowedTags: [], allowedAttributes: {} });
-
-      // Update Firebase Auth
-      const updatePayload = {
-        email: email || users.email,
-        displayName: sanitizedName,
-        ...(newPassword && { password: newPassword }),
-      };
-      const updatedUser = await admin.auth().updateUser(uid, updatePayload);
-
-      // Simpan perubahan di Firestore
-      await userRepository.update(emailVerified, {
-        email: email || users.email,
-        password: hashedPassword || users.password,
-        name: sanitizedName,
-      });
-
+  
+      // Update nama jika diubah
+      if (name && name !== users.name) {
+        const sanitizedName = sanitizeHtml(name, { allowedTags: [], allowedAttributes: {} });
+        updatePayload.name = sanitizedName;
+      }
+  
+      // Update atribut tambahan jika diubah
+      if (userClass && userClass !== users.userClass) {
+        updatePayload.kelas = userClass;
+      }
+  
+      if (birthDate && birthDate !== users.birthDate) {
+        updatePayload.birthDate = birthDate;
+      }
+  
+      if (school && school !== users.school) {
+        updatePayload.school = school;
+      }
+  
+      // Update Firebase Auth (hanya jika email atau nama berubah)
+      if (updatePayload.email || updatePayload.name) {
+        const firebaseUpdatePayload = {
+          ...(updatePayload.email && { email: updatePayload.email }),
+          ...(updatePayload.name && { displayName: updatePayload.name }),
+          ...(newPassword && { password: newPassword }),
+        };
+        await admin.auth().updateUser(uid, firebaseUpdatePayload);
+      }
+  
+      // Simpan perubahan ke Firestore
+      if (Object.keys(updatePayload).length > 0) {
+        await userRepository.update(emailVerified, updatePayload);
+      }
+  
       return res.status(200).json({
         status: 200,
         message: 'Profile updated successfully.',
-        user: {
-          email: updatedUser.email,
-          name: updatedUser.displayName,
-        },
+        updatedFields: updatePayload, // Berikan atribut yang diubah ke respons
       });
     } catch (error) {
       console.error('Error in editProfile:', error.message, error.stack);
-
+  
       return res.status(500).json({
         status: 500,
         message: `Failed to update profile: ${error.message}`,
       });
     }
-  }
+  }    
 
   // Delete Account
   async deleteAccount(req, res) {

@@ -26,9 +26,9 @@ class chatController {
   async getClasses(req, res) {
     try {
       const classes = [
-        "Kelas 10",
-        "Kelas 11",
-        "Kelas 12"
+        "10",
+        "11",
+        "12"
       ];
   
       console.log("Classes data:", classes); // Debug log
@@ -61,7 +61,7 @@ class chatController {
   
       // Daftar topik berdasarkan kelas
       const topics = {
-        "Kelas 10": [
+        "10": [
           "Ruang Lingkup Biologi",
           "Sel",
           "Sel 2",
@@ -73,7 +73,7 @@ class chatController {
           "Plantae",
           "Animalia"
         ],
-        "Kelas 11": [
+        "11": [
           "Jaringan Hewan",
           "Jaringan Tumbuhan",
           "Sistem Gerak pada Manusia",
@@ -87,7 +87,7 @@ class chatController {
           "Metabolisme",
           "Pertumbuhan dan Perkembangan"
         ],
-        "Kelas 12": [
+        "12": [
           "Hereditas 2",
           "Pewarisan Sifat",
           "Mutasi",
@@ -142,7 +142,7 @@ class chatController {
 
         // Validasi kelas dan topik
         const topics = {
-            "Kelas 10": [
+            "10": [
                 "Ruang Lingkup Biologi",
                 "Sel",
                 "Sel 2",
@@ -154,7 +154,7 @@ class chatController {
                 "Plantae",
                 "Animalia"
             ],
-            "Kelas 11": [
+            "11": [
                 "Jaringan Hewan",
                 "Jaringan Tumbuhan",
                 "Sistem Gerak pada Manusia",
@@ -168,7 +168,7 @@ class chatController {
                 "Metabolisme",
                 "Pertumbuhan dan Perkembangan"
             ],
-            "Kelas 12": [
+            "12": [
                 "Hereditas 2",
                 "Pewarisan Sifat",
                 "Mutasi",

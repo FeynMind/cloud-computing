@@ -13,8 +13,6 @@ class AuthController {
         email,
         password,
         name,
-        birthDate,
-        class: userClass,
       } = req.body;
 
 
@@ -29,14 +27,6 @@ class AuthController {
 
       if (!name) {
         throw new ValidationError('Name is required.');
-      }
-
-      if(!birthDate) {
-        throw new ValidationError('Birth Date is required.');
-      }
-
-      if(!userClass) {
-        throw new ValidationError('Class is required.');
       }
 
       // Buat user di firebase Authentication
@@ -57,8 +47,6 @@ class AuthController {
         email,
         password: await bcrypt.hash(password, 10),
         name,
-        birthDate,
-        class: userClass,
         createdAt,
         updatedAt,
       }, email);
@@ -69,8 +57,6 @@ class AuthController {
         user: {
           email: user.email,
           name: user.displayName,
-          birthDate,
-          class: userClass,
           createdAt,
         },
       });
